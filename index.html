@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dog Game</title>
+    <style>
+        body { text-align: center; background-color: skyblue; overflow: hidden; }
+        canvas { background: url('clouds.png') repeat-x; animation: moveClouds 60s linear infinite; }
+        @keyframes moveClouds {
+            from { background-position: 0 0; }
+            to { background-position: -1000px 0; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <audio id="splatSound" src="splat.mp3"></audio>
+    <audio id="catchSound" src="catch.mp3"></audio>
+    
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        function loadImage(src, callback) {
+            let img = new Image();
+            img.onload = () => callback(img);
+            img.onerror = () => console.error("Error loading image: " + src);
+            img.src = src;
+        }
+        
+        let dog = { x: 400, y: 500, width: 60, height: 60, img: null };
+        let bird = { x: 800, y: 100, width: 50, height: 50, img: null, dropping: null };
+        let fruits = [];
+        let lives = 3;
+        
+        loadImage('dog.png', img => dog.img = img);
+        loadImage('bird.png', img => bird.img = img);
+        
+        function spawnFruit() {
+            loadImage('fruit.png', img => {
+                fruits.push({ x: Math.random() * 740, y: 0, width: 40, height: 40, speed: 2, img: img });
+            });
+        }
+        
+        function moveFruits() {
+            fruits.forEach((fruit, index) => {
+                fruit.y += fruit.speed;
+                if (fruit.y > canvas.height) {
+                    document.getElementById('splatSound').play();
+                    fruits.splice(index, 1);
+                }
+                if (fruit.x >= dog.x && fruit.x <= dog.x + dog.width && fruit.y >= dog.y && fruit.y <= dog.y + dog.height) {
+                    document.getElementById('catchSound').play();
+                    fruits.splice(index, 1);
+                }
+            });
+        }
+        
+        function moveBird() {
+            bird.x -= 2;
+            if (bird.x < -50) {
+                bird.x = 800;
+                bird.y = Math.random() * 100 + 50;
+                loadImage('heart.png', img => {
+                    bird.dropping = { x: bird.x, y: bird.y, width: 30, height: 30, img: img };
+                });
+            }
+        }
+        
+        function moveDropping() {
+            if (bird.dropping) {
+                bird.dropping.y += 2;
+                if (bird.dropping.y > canvas.height) {
+                    bird.dropping = null;
+                }
+                if (bird.dropping && bird.dropping.x >= dog.x && bird.dropping.x <= dog.x + dog.width && bird.dropping.y >= dog.y && bird.dropping.y <= dog.y + dog.height) {
+                    lives++;
+                    bird.dropping = null;
+                }
+            }
+        }
+        
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (dog.img) ctx.drawImage(dog.img, dog.x, dog.y, dog.width, dog.height);
+            fruits.forEach(fruit => { if (fruit.img) ctx.drawImage(fruit.img, fruit.x, fruit.y, fruit.width, fruit.height); });
+            if (bird.img) ctx.drawImage(bird.img, bird.x, bird.y, bird.width, bird.height);
+            if (bird.dropping && bird.dropping.img) ctx.drawImage(bird.dropping.img, bird.dropping.x, bird.dropping.y, bird.dropping.width, bird.dropping.height);
+        }
+        
+        function update() {
+            moveFruits();
+            moveBird();
+            moveDropping();
+            draw();
+        }
+        
+        setInterval(spawnFruit, 2000);
+        setInterval(update, 30);
+    </script>
+</body>
+</html>
