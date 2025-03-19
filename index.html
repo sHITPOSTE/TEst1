@@ -1,4 +1,433 @@
 <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Fruit Catching Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #87CEEB;
+            font-family: Arial, sans-serif;
+        }
+        #gameCanvas {
+            display: block;
+            background-color: #87CEEB;
+        }
+        #gameUI {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 24px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+        }
+        #startScreen h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        #startScreen p {
+            font-size: 24px;
+            margin-bottom: 30px;
+            text-align: center;
+            max-width: 80%;
+        }
+        #startButton {
+            padding: 10px 20px;
+            font-size: 24px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #startButton:hover {
+            background-color: #45a049;
+        }
+        #gameOver {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+        }
+        #gameOver h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        #finalScore {
+            font-size: 36px;
+            margin-bottom: 30px;
+        }
+        #restartButton {
+            padding: 10px 20px;
+            font-size: 24px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #restartButton:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="gameUI">
+        <div>Score: <span id="score">0</span></div>
+        <div>Lives: <span id="lives">3</span></div>
+    </div>
+    <div id="startScreen">
+        <h1>Fruit Catching Game</h1>
+        <p>Help the dog catch all the falling fruits in front of Mount Fuji! Move the dog by using arrow keys or by touching anywhere on the screen.</p>
+        <button id="startButton">Start Game</button>
+    </div>
+    <div id="gameOver">
+        <h1>Game Over</h1>
+        <div id="finalScore">Your score: 0</div>
+        <button id="restartButton">Play Again</button>
+    </div>
+
+    <script>
+        // Game variables
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const livesElement = document.getElementById('lives');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOver');
+        const finalScoreElement = document.getElementById('finalScore');
+        const startButton = document.getElementById('startButton');
+        const restartButton = document.getElementById('restartButton');
+        
+        let gameWidth, gameHeight;
+        let score = 0;
+        let lives = 3;
+        let gameRunning = false;
+        let fruits = [];
+        let dog = {
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 80,
+            speed: 10,
+            dx: 0,
+            basketWidth: 80,
+            basketHeight: 40
+        };
+        
+        // Resize canvas to fit the window
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            gameWidth = canvas.width;
+            gameHeight = canvas.height;
+            
+            // Reset dog position
+            dog.x = gameWidth / 2 - dog.width / 2;
+            dog.y = gameHeight - dog.height - 20;
+        }
+        
+        // Load images
+        const dogImage = new Image();
+        dogImage.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgODAiPjxwYXRoIGQ9Ik0xNSA1MGMwIDAgNS0yMCAyMC0yMCA1IDAgMTAgMTAgMTAgMjBNNjUgNTBjMCAwIDUtMjAgMjAtMjAgNSAwIDEwIDEwIDEwIDIwIiBmaWxsPSJub25lIiBzdHJva2U9IiM4YjRkMDAiIHN0cm9rZS13aWR0aD0iMyIvPjxlbGxpcHNlIGN4PSI1MCIgY3k9IjUwIiByeD0iMzUiIHJ5PSIyNSIgZmlsbD0iI2QyOGIzMCIvPjxlbGxpcHNlIGN4PSIzNSIgY3k9IjQwIiByeD0iNyIgcnk9IjciIGZpbGw9IiNmZmZmZmYiLz48ZWxsaXBzZSBjeD0iMzUiIGN5PSI0MCIgcng9IjMiIHJ5PSIzIiBmaWxsPSIjMDAwMDAwIi8+PGVsbGlwc2UgY3g9IjY1IiBjeT0iNDAiIHJ4PSI3IiByeT0iNyIgZmlsbD0iI2ZmZmZmZiIvPjxlbGxpcHNlIGN4PSI2NSIgY3k9IjQwIiByeD0iMyIgcnk9IjMiIGZpbGw9IiMwMDAwMDAiLz48cGF0aCBkPSJNNDAgNTVjMCAwIDEwIDggMjAgMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNWMzMDAwIiBzdHJva2Utd2lkdGg9IjIiLz48cGF0aCBkPSJNNDUgNjVjMCAwIDEwIDUgMTAgMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOGI0ZDAwIiBzdHJva2Utd2lkdGg9IjIiLz48cGF0aCBkPSJNMTAgNTVjMCAwIDEwLTUgMTUgMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOGI0ZDAwIiBzdHJva2Utd2lkdGg9IjIiLz48cGF0aCBkPSJNNzUgNTVjMCAwIDEwLTUgMTUgMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOGI0ZDAwIiBzdHJva2Utd2lkdGg9IjIiLz48IS0tIEJhc2tldCBvbiBiYWNrIC0tPjxwYXRoIGQ9Ik00MCAyOGMwIDAgLTUgLTIwIDIwIC0yMGwwIDAgMjAgMGMwIDAgNSAyMCAwIDIwIiBmaWxsPSJub25lIiBzdHJva2U9IiM4YjRkMDAiIHN0cm9rZS13aWR0aD0iMyIvPjwvc3ZnPg==';
+        
+        const basketImage = new Image();
+        basketImage.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MCA0MCI+PHBhdGggZD0iTTUgMTBjMCAwIDEwIC0xMCA3MCAtMTAgbDAgMzAgLTcwIDAgeiIgZmlsbD0iI2NjYjI4YyIgc3Ryb2tlPSIjOGI0ZDAwIiBzdHJva2Utd2lkdGg9IjIiLz48cGF0aCBkPSJNNSAxMGMwIDAgMTAgLTEwIDcwIC0xMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOGI0ZDAwIiBzdHJva2Utd2lkdGg9IjIiLz48cGF0aCBkPSJNMTUgMTVjMCAwIDIwIC01IDUwIC01IiBmaWxsPSJub25lIiBzdHJva2U9IiM4YjRkMDAiIHN0cm9rZS13aWR0aD0iMSIvPjxwYXRoIGQ9Ik0xNSAyNWMwIDAgMjAgLTUgNTAgLTUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzhiNGQwMCIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9zdmc+';
+        
+        const orangeImage = new Image();
+        orangeImage.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MCA0MCI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMTgiIGZpbGw9IiNmZjgwMDAiIHN0cm9rZT0iI2YyNjQwMCIgc3Ryb2tlLXdpZHRoPSIyIi8+PHBhdGggZD0iTTIwIDJjMCAwIDIgNSAwIDEwIiBmaWxsPSJub25lIiBzdHJva2U9IiM3YjJkMDAiIHN0cm9rZS13aWR0aD0iMiIvPjxwYXRoIGQ9Ik0yMSA5YzAgMCA1IC0yIDUgLTUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzdiMmQwMCIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+';
+        
+        const bananaImage = new Image();
+        bananaImage.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MCAyMCI+PHBhdGggZD0iTTUgMTVjMCAwIDAgLTEwIDEwIC0xMCAxMCAwIDIwIDAgMjAgMTAgMCAxMCAtMTAgMTAgLTIwIDUgLTUgLTIuNSAtMTAgLTIuNSAtMTAgLTUiIGZpbGw9IiNmZmZmMDAiIHN0cm9rZT0iI2ZmY2MwMCIgc3Ryb2tlLXdpZHRoPSIyIi8+PHBhdGggZD0iTTEwIDEwYzAgMCAtMiAyIC0yIDUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmY2MwMCIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9zdmc+';
+        
+        const backgroundImage = new Image();
+        backgroundImage.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzg3Q0VFQiIvPjxwYXRoIGQ9Ik0wIDgwIEwxMDAgODBaIiBzdHJva2U9IiM4MmI1MmQiIHN0cm9rZS13aWR0aD0iNDAiLz48IS0tIE1vdW50IEZ1amkgaW4gdGhlIGJhY2tncm91bmQgLS0+PHBhdGggZD0iTTMwIDgwIEw1MCAzMCBMNzAgODAiIGZpbGw9IiNhMGEwYTAiIHN0cm9rZT0ibm9uZSIvPjxwYXRoIGQ9Ik0zNSA4MCBMNTAgMzUgTDY1IDgwIiBmaWxsPSIjZjBmMGZmIiBzdHJva2U9Im5vbmUiLz48L3N2Zz4=';
+        
+        const cloudImage = new Image();
+        cloudImage.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgNTAiPjxwYXRoIGQ9Ik0xMCAyNWMwIC04IDYgLTE1IDE1IC0xNSA1IDAgMTAgNSAxMCA1IDAgLTUgMTAgLTE1IDIwIC0xNSAxNSAwIDI1IDEwIDI1IDIwIDAgMCAxMCAwIDEwIDEwIDAgMTAgLTEwIDEwIC0xMCAxMCBsIC03MCAwIGMwIDAgLTEwIDAgLTEwIC0xMCAwIC01IDEwIC01IDEwIC01IiBmaWxsPSIjZmZmZmZmIiBzdHJva2U9IiNlZWVlZWUiIHN0cm9rZS13aWR0aD0iMiIvPjwvc3ZnPg==';
+        
+        // Create cloud positions
+        const clouds = [
+            { x: 50, y: 50, scale: 1 },
+            { x: 200, y: 80, scale: 1.5 },
+            { x: 350, y: 70, scale: 0.8 },
+            { x: 500, y: 40, scale: 1.2 }
+        ];
+        
+        // Create a fruit object
+        function createFruit() {
+            const fruitType = Math.random() < 0.5 ? 'orange' : 'banana';
+            const size = fruitType === 'orange' ? 40 : 40;
+            
+            return {
+                x: Math.random() * (gameWidth - size),
+                y: -size,
+                width: size,
+                height: fruitType === 'orange' ? size : size / 2,
+                speed: 2 + Math.random() * 3,
+                type: fruitType
+            };
+        }
+        
+        // Move dog
+        function moveDog() {
+            dog.x += dog.dx;
+            
+            // Prevent dog from moving off screen
+            if (dog.x < 0) {
+                dog.x = 0;
+            } else if (dog.x + dog.width > gameWidth) {
+                dog.x = gameWidth - dog.width;
+            }
+        }
+        
+        // Move fruits and check for collisions
+        function updateFruits() {
+            for (let i = 0; i < fruits.length; i++) {
+                const fruit = fruits[i];
+                fruit.y += fruit.speed;
+                
+                // Check for collision with dog/basket
+                const basketX = dog.x + (dog.width - dog.basketWidth) / 2;
+                const basketY = dog.y - dog.basketHeight;
+                
+                if (
+                    fruit.y + fruit.height > basketY &&
+                    fruit.y < basketY + dog.basketHeight &&
+                    fruit.x + fruit.width > basketX &&
+                    fruit.x < basketX + dog.basketWidth
+                ) {
+                    // Fruit caught
+                    fruits.splice(i, 1);
+                    i--;
+                    score += 10;
+                    scoreElement.textContent = score;
+                } else if (fruit.y > gameHeight) {
+                    // Fruit missed
+                    fruits.splice(i, 1);
+                    i--;
+                    lives--;
+                    livesElement.textContent = lives;
+                    
+                    if (lives <= 0) {
+                        gameOver();
+                    }
+                }
+            }
+            
+            // Add new fruits
+            if (Math.random() < 0.02) {
+                fruits.push(createFruit());
+            }
+        }
+        
+        // Draw everything
+        function draw() {
+            // Clear canvas
+            ctx.clearRect(0, 0, gameWidth, gameHeight);
+            
+            // Draw background with Mount Fuji
+            ctx.drawImage(backgroundImage, 0, 0, gameWidth, gameHeight);
+            
+            // Draw larger Mount Fuji
+            const mountainBaseWidth = gameWidth * 0.8;
+            const mountainHeight = gameHeight * 0.6;
+            const mountainX = (gameWidth - mountainBaseWidth) / 2;
+            const mountainY = gameHeight - mountainHeight * 0.3;
+            
+            // Draw mountain base (gray)
+            ctx.fillStyle = '#a0a0a0';
+            ctx.beginPath();
+            ctx.moveTo(mountainX, mountainY);
+            ctx.lineTo(mountainX + mountainBaseWidth / 2, mountainY - mountainHeight);
+            ctx.lineTo(mountainX + mountainBaseWidth, mountainY);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Draw snow cap (white)
+            ctx.fillStyle = '#f0f0ff';
+            ctx.beginPath();
+            ctx.moveTo(mountainX + mountainBaseWidth * 0.2, mountainY);
+            ctx.lineTo(mountainX + mountainBaseWidth / 2, mountainY - mountainHeight);
+            ctx.lineTo(mountainX + mountainBaseWidth * 0.8, mountainY);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Draw clouds
+            for (const cloud of clouds) {
+                ctx.drawImage(cloudImage, cloud.x, cloud.y, 100 * cloud.scale, 50 * cloud.scale);
+            }
+            
+            // Draw dog
+            ctx.drawImage(dogImage, dog.x, dog.y, dog.width, dog.height);
+            
+            // Draw basket
+            const basketX = dog.x + (dog.width - dog.basketWidth) / 2;
+            const basketY = dog.y - dog.basketHeight;
+            ctx.drawImage(basketImage, basketX, basketY, dog.basketWidth, dog.basketHeight);
+            
+            // Draw fruits
+            for (const fruit of fruits) {
+                const img = fruit.type === 'orange' ? orangeImage : bananaImage;
+                ctx.drawImage(img, fruit.x, fruit.y, fruit.width, fruit.height);
+            }
+        }
+        
+        // Game loop
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            moveDog();
+            updateFruits();
+            draw();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Start game
+        function startGame() {
+            gameRunning = true;
+            score = 0;
+            lives = 3;
+            fruits = [];
+            
+            // Update UI
+            scoreElement.textContent = score;
+            livesElement.textContent = lives;
+            
+            // Hide start screen
+            startScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            
+            // Start game loop
+            gameLoop();
+        }
+        
+        // Game over
+        function gameOver() {
+            gameRunning = false;
+            
+            // Show game over screen
+            gameOverScreen.style.display = 'flex';
+            finalScoreElement.textContent = 'Your score: ' + score;
+        }
+        
+        // Event listeners
+        function keyDown(e) {
+            if (e.key === 'ArrowRight' || e.key === 'Right') {
+                dog.dx = dog.speed;
+            } else if (e.key === 'ArrowLeft' || e.key === 'Left') {
+                dog.dx = -dog.speed;
+            }
+        }
+        
+        function keyUp(e) {
+            if (
+                e.key === 'ArrowRight' ||
+                e.key === 'Right' ||
+                e.key === 'ArrowLeft' ||
+                e.key === 'Left'
+            ) {
+                dog.dx = 0;
+            }
+        }
+        
+        // Touch controls
+        function handleTouch(e) {
+            if (!gameRunning) return;
+            e.preventDefault(); // Prevent default touch behavior (scrolling)
+            
+            const touch = e.touches[0];
+            const touchX = touch.clientX;
+            
+            // Make dog move directly to touch position with smoothing
+            const targetX = touchX - (dog.width / 2);
+            dog.dx = (targetX - dog.x) * 0.2;
+            
+            // Cap maximum speed
+            if (dog.dx > dog.speed) dog.dx = dog.speed;
+            if (dog.dx < -dog.speed) dog.dx = -dog.speed;
+        }
+        
+        function handleTouchEnd() {
+            dog.dx = 0;
+        }
+        
+        // Initialize game
+        function init() {
+            resizeCanvas();
+            
+            // Event listeners
+            document.addEventListener('keydown', keyDown);
+            document.addEventListener('keyup', keyUp);
+            window.addEventListener('resize', resizeCanvas);
+            canvas.addEventListener('touchstart', handleTouch, { passive: false });
+            canvas.addEventListener('touchmove', handleTouch, { passive: false });
+            canvas.addEventListener('touchend', handleTouchEnd);
+            
+            // Prevent default touch actions on the canvas
+            document.addEventListener('touchmove', function(e) {
+                if (e.target == canvas) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            
+            startButton.addEventListener('click', startGame);
+            restartButton.addEventListener('click', startGame);
+            
+            // Draw initial screen
+            draw();
+        }
+        
+        // Start the game when all images are loaded
+        let imagesLoaded = 0;
+        const totalImages = 5;
+        
+        function imageLoaded() {
+            imagesLoaded++;
+            if (imagesLoaded === totalImages) {
+                init();
+            }
+        }
+        
+        // Add load event listeners to images
+        dogImage.onload = imageLoaded;
+        basketImage.onload = imageLoaded;
+        orangeImage.onload = imageLoaded;
+        bananaImage.onload = imageLoaded;
+        backgroundImage.onload = imageLoaded;
+    </script>
+</body>
+</html>
+
+<!DOCTYPE html>
 <html>
 <head>
     <title>Dog Game</title>
